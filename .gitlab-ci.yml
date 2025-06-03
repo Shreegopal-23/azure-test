@@ -1,0 +1,61 @@
+variables:
+  GITLAB_HTTP_URL: "https://${GITLAB_ADMIN_USER}:${GITLAB_ADMIN_ACCESS_TOKEN}@${GITLAB_URL}"
+  GITHUB_REPO_URL: "https://${GITHUB_USERNAME}:${GITHUB_ACCESS_TOKEN}@${GITHUB_BASE_URL}"
+  BITBUCKET_REPO_URL: "https://${BITBUCKET_CLOUD_USERNAME}:${BITBUCKET_CLOUD_PASSWORD}@${BITBUCKET}"
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+
+stages:
+  - sync_vcs
+  - verify_env
+  - build
+  - deploy
+
+sync_gitlab_to_vcs:
+  stage: sync_vcs
+  script:
+    - git checkout "$CI_COMMIT_BRANCH"
+    - git pull
+    - echo $BITBUCKET_REPO_URL
+    - git remote set-url origin  $GITHUB_REPO_URL
+    - git push origin "$CI_COMMIT_BRANCH"
+    - git remote set-url origin $BITBUCKET_REPO_URL
+    - git push origin "$CI_COMMIT_BRANCH"
+  except:
+    - master
+    - main
+    - tags
+  tags:
+    - sync
+
+sync_gitlab_to_vcs_prod:
+  stage: sync_vcs
+  when: manual
+  script:
+    - git checkout "$CI_COMMIT_BRANCH"
+    - git pull
+    - git remote set-url origin $GITHUB_REPO_URL
+    - git push origin "$CI_COMMIT_BRANCH"
+    - git remote set-url origin $BITBUCKET_REPO_URL
+    - git push origin "$CI_COMMIT_BRANCH"
+  only:
+    - master
+    - main
+  tags:
+    - sync
+
+sync_to_vcs_tags:
+  stage: sync_vcs
+  script:
+    - git fetch --tags origin
+    - TAG=$(git describe --tags)
+    - echo $TAG
+    - git checkout $TAG
+    - git remote set-url origin $GITHUB_REPO_URL
+    - git push origin $TAG
+    - git remote set-url origin $BITBUCKET_REPO_URL
+    - git push origin $TAG
+  only:
+    - tags
+  tags:
+    - sync
